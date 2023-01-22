@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        .log-line {
+            font-family: monospace;
+            padding: 2px;
+            border-top: 1px solid transparent;
+            border-bottom: 1px solid transparent;
+            color: #ffffff;
+            background: #242424;
+        }
+
+        .log-line span:not(.obj-prop):not(.gray):not(.property-name) {
+            margin: 0 3px;
+        }
+
+        .log-line .boolean,
+        .log-line .number {
+            color: #9980ff;
+        }
+
+        .gray,
+        .log-line .null-undefined {
+            color: #a7a7a7;
+        }
+
+        .log-line .object .string {
+            color: #d1977f;
+        }
+
+        .log-line .object .property-name {
+            color: #dcdcaa;
+            margin-left: 3px;
+        }
+
+        .log-line .object span.toggle {
+            outline: none;
+            background: no-repeat;
+            color: #fff;
+            border-radius: 0px;
+            border: 4px solid transparent;
+            width: 0;
+            height: 0;
+            margin: 0 4px 0 0px !important;
+            display: inline-flex;
+            border-right-color: white;
+            border-bottom-color: white;
+            transform: rotate(-45deg);
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .log-line .object.opened > span.toggle {
+            transform: rotate(45deg);
+        }
+
+        .log-line .object.opened {
+            display: inline-flex;
+            flex-direction: column;
+        }
+
+        .log-line .object.opened > .obj-content {
+            display: inline-flex;
+            flex-direction: column;
+        }
+
+        .object > .arr-val:not(.last)::after,
+        .object > .obj-content > .obj-prop:not(.last)::after {
+            color: #a7a7a7;
+            content: ',';
+            margin-left: -3px;
+        }
+
+        .object.opened > .arr-val:not(.last)::after,
+        .object.opened > .obj-content > .obj-prop:not(.last)::after {
+            display: none;
+        }
+
+        .warn {
+            border-color: #665500;
+            background-color: #332b00;
+            color: #f2ab26;
+        }
+
+        .error {
+            border-color: #5c0000;
+            background-color: #290000;
+            color: #ff8080;
+        }
+    </style>
+</head>
+<body>
+<div id="console"></div>
+<script>
+    const logMessages = [];
+
+    console.log = logger('log');
+    console.warn = logger('warn');
+    console.info = logger('info');
+    console.error = logger('error');
+
+    function logger(type) {
+        let loggerBackup = null;
+        if (type in console) {
+            loggerBackup = console[type];
+        } else {
+            return;
+        }
+        return function () {
+            logMessages.push({type, values: [...arguments]});
+            loggerBackup.apply(console, arguments);
+            document.querySelector('#console').innerHTML = parseLogOutput(logMessages);
+        }
+    }
+
+    function parseLogOutput(data) {
+        return data.map(({type, values}) => displayDataByType(type, values)).join('');
+    }
+
+    function displayDataByType(type, values) {
+        return `<div class="log-line ${type}">${displayValuesLine(values)}</div>`;
+    }
+
+    function displayValuesLine(values) {
+        return values.map(mapValue).join('')
+    }
+
+    function mapValue(val, nested = false) {
+        return `<span class="${getClassByVal(val)}">${displayValue(val, nested)}</span>`;
+    }
+
+    function getClassByVal(value) {
+        if (value === null || value === undefined) {
+            return 'null-undefined';
+        }
+        return typeof value;
+    }
+
+    function displayValue(value, nested) {
+        if (typeof value === "object") {
+            return displayObjectValue(value);
+            return JSON.stringify(value, null, 4);
+        }
+        if (nested) {
+            return typeof value === "string" ? `'${value}'` : value
+        }
+        return value;
+    }
+
+    function displayArrayValue(arr) {
+        return getToggleButton() + gray('[') + arr.map((value, index) => {
+            const lastClass = arr.length === (index + 1) ? ' last' : '';
+            return `<span class="arr-val${lastClass}">${mapValue(value, true)}</span>`;
+        }).join('') + gray(']');
+    }
+
+    function displayObjectValue(value) {
+        if (value === null) {
+            return 'null';
+        }
+        if (Array.isArray(value)) {
+            return displayArrayValue(value);
+        }
+        const keys = Object.keys(value)
+        return getToggleButton() + gray('{') + '<span class="obj-content">' + keys.map((key, index) => {
+            const lastClass = keys.length === (index + 1) ? ' last' : '';
+            return `<span class="obj-prop${lastClass}"><span class="property-name">${key}</span>${gray(':')} ${mapValue(value[key], true)}</span>`;
+        }).join('') + '</span>' + gray('}');
+    }
+
+    function gray(value) {
+        return `<span class="gray">${value}</span>`;
+    }
+
+    function getToggleButton() {
+        return `<span class="toggle" onclick="toggleObj(event)"></span>`;
+    }
+
+    function toggleObj(event) {
+        event.preventDefault();
+        const parent = event.target.parentNode;
+        if (parent.classList.contains('opened')) {
+            parent.classList.remove('opened');
+        } else {
+            parent.classList.add('opened');
+        }
+    }
+</script>
+<script>
+
+    console.log('text', 123, null, undefined, false, true, [111, 232, 'ssss,s', ['fff', 'aa']], {
+        propsString: 'str',
+        propNum: 11,
+        propArr: [1, 'string'],
+        propNull: null,
+        propBool: false,
+        propUnd: undefined,
+        propObj: {x: 'str', y: 324}
+    })
+    console.warn('text', 123, null, undefined, false, true, [111, 232, 'ssss,s', ['fff', 'aa']], {
+        propsString: 'str',
+        propNum: 11,
+        propArr: [1, 'string'],
+        propNull: null,
+        propBool: false,
+        propUnd: undefined,
+        propObj: {x: 'str', y: 324}
+    })
+    console.info('text', 123, null, undefined, false, true, [111, 232, 'ssss,s', ['fff', 'aa']], {
+        propsString: 'str',
+        propNum: 11,
+        propArr: [1, 'string'],
+        propNull: null,
+        propBool: false,
+        propUnd: undefined,
+        propObj: {x: 'str', y: 324}
+    })
+    console.error('text', 123, null, undefined, false, true, [111, 232, 'ssss,s', ['fff', 'aa']], {
+        propsString: 'str',
+        propNum: 11,
+        propArr: [1, 'string'],
+        propNull: null,
+        propBool: false,
+        propUnd: undefined,
+        propObj: {x: 'str', y: 324}
+    })
+    console.debug('text', 123, null, undefined, false, true, [111, 232, 'ssss,s', ['fff', 'aa']], {
+        propsString: 'str',
+        propNum: 11,
+        propArr: [1, 'string'],
+        propNull: null,
+        propBool: false,
+        propUnd: undefined,
+        propObj: {x: 'str', y: 324}
+    })
+</script>
+</body>
+</html>
